@@ -1,0 +1,42 @@
+version: '2'
+
+services:
+  adblock-dns:
+    build: unbound
+    container_name: adblock-dns
+    volumes_from:
+      - adblock-dns-data
+    environment:
+      - NUM_THREADS=2
+      - USE_CAPS_FOR_ID=yes
+      - LOG_ENABLE=no
+      - LOG_QUERIES=yes
+      - VERBOSITY=2
+      # - PRIMARY_FORWARDER=210.188.224.10
+      # - SECONDARY_FORWARDER=210.188.224.11
+      - DUMMY_HTTP_SERVER_v4=127.0.0.1
+    ports:
+      - "53:53"
+      - "53:53/udp"
+    # networks:
+    #   adblockdns:
+    #     ipv4_address: "172.20.0.20"
+
+  adblock-dns-data:
+    image: busybox:latest
+    container_name: adblock-dns-data
+    volumes:
+      - ./log/unbound:/var/log/unbound
+
+  adblock-dns-dummyhttp:
+    build: dummyhttp
+    container_name: adblock-dns-dummyhttp
+    ports:
+      - "80:80"
+
+# networks:
+#   adblockdns:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: "172.20.0.0/24"
