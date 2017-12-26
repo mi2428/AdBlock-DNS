@@ -1,9 +1,9 @@
 FROM busybox:latest
-MAINTAINER Taichi MIYA <tamy@z.mi2428.net>
-
-EXPOSE 80
+MAINTAINER mi2428
 
 ADD http.sh /http.sh
 RUN chmod +x /http.sh
+
+EXPOSE 80
 
 CMD ["/http.sh"]

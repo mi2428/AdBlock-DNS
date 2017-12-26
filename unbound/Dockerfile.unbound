@@ -1,10 +1,7 @@
 FROM ubuntu:xenial
-MAINTAINER Taichi MIYA <tamy@z.mi2428.net>
+MAINTAINER mi2428
 
-ENV VERSION 1.5.10
-
-EXPOSE 53/udp
-EXPOSE 53
+ENV VERSION 1.6.7
 
 WORKDIR /opt
 
@@ -48,9 +45,12 @@ RUN apt-get update && apt-get -y upgrade && \
     mkdir -p /var/log/unbound && \
     chown -R unbound:unbound /var/log/unbound
 
-ADD assets/ad.db /etc/unbound/ad.db
+ADD assets/domains.txt /etc/unbound/domains.txt
 ADD assets/unbound.conf /etc/unbound/unbound.conf
 ADD init.sh /init.sh
 RUN chmod +x /init.sh
+
+EXPOSE 53
+EXPOSE 53/udp
 
 CMD ["/init.sh"]

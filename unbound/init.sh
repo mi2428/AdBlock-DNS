@@ -1,40 +1,47 @@
 #!/bin/bash
+[[ -n $DEBUG ]] && set -x
 
-config="/etc/unbound/unbound.conf"
-db="/etc/unbound/ad.db"
+domainstxt="/etc/unbound/domains.txt"
+unboundconf="/etc/unbound/unbound.conf"
+adblockdb="/etc/unbound/adblock.db"
 
-NUM_THREADS="${NUM_THREADS:-1}"
-USE_CAPS_FOR_ID="${USE_CAPS_FOR_ID:-no}"
-LOG_ENABLE="${LOG_ENABLE:-no}"
-LOG_QUERIES="${LOG_QUERIES:-no}"
-VERBOSITY="${VERBOSITY:-1}"
-PRIMARY_FORWARDER="${PRIMARY_FORWARDER}"
-SECONDARY_FORWARDER="${SECONDARY_FORWARDER}"
+errout(){ echo -e "\e[31m$1\e[m" >&2 }
 
-DUMMY_HTTP_SERVER_V4="${DUMMY_HTTP_SERVER_V4:-160.16.52.240}"
-DUMMY_HTTP_SERVER_V6="${DUMMY_HTTP_SERVER_V6:-2001:e42:102:1502:160:16:52:240}"
+builddb(){
+    local redirect=$1
+    local record
+    echo -n "Building database..."
+    while read domain; do
+        [[ $domain =~ ^# ]] && continue
+        if [[ -n $redirect ]]; then
+            record="local-zone: \"$domain\" redirect\n"
+            record+="local-data: \"$domain A $DUMMY_HTTP_SERVER_V4\"\n"
+            record+="local-data: \"$domain AAAA $DUMMY_HTTP_SERVER_V6\"\n"
+        else
+            record="local-zone: \"$domain\" static\n"
+        fi
+        echo -ne "$record" >> $adblockdb
+    done < $domainstxt
+    echo "done"
+}
 
-sed -i "s/{{NUM_THREADS}}/${NUM_THREADS}/" $config
-sed -i "s/{{USE_CAPS_FOR_ID}}/${USE_CAPS_FOR_ID}/" $config
-sed -i "s/{{LOG_QUERIES}}/${LOG_QUERIES}/" $config
-sed -i "s/{{VERBOSITY}}/${VERBOSITY}/" $config
-
-if [[ "$LOG_ENABLE" = "yes" ]]; then
-    sed -i "s/{{LOG_ENABLE}}/${LOG_ENABLE}/" $config
+if [[ -z $DUMMY_HTTP_SERVER_V4 ]] && [[ -z $DUMMY_HTTP_SERVER_V6 ]]; then
+    builddb
+elif [[ -n $DUMMY_HTTP_SERVER_V4 ]] && [[ -n $DUMMY_HTTP_SERVER_V6 ]]; then
+    builddb "redirect"
 else
-    sed -i "s/{{LOG_ENABLE}}/\"\"/" $config
+    errout "Please set/unset both DUMMY_HTTP_SERVER_V4 and DUMMY_HTTP_SERVER_V6."
+    exit 1
 fi
 
-if [[ -z "$PRIMARY_FORWARDER" ]] && [[ -z "$SECONDARY_FORWARDER" ]]; then
-    sed -i "/forward-zone:/d" $config
-    sed -i "/name: \".\"/d" $config
-    sed -i "/forward-addr:/d" $config
-else
-    sed -i "s/{{PRIMARY_FORWARDER}}/${PRIMARY_FORWARDER}/" $config
-    sed -i "s/{{SECONDARY_FORWARDER}}/${SECONDARY_FORWARDER}/" $config
+if [[ -z "$PRIMARY_FORWARDER" ]] || [[ -z "$SECONDARY_FORWARDER" ]]; then
+    errout "Please set PRIMARY_FORWARDER and SECONDARY_FORWARDER."
+    exit 2
 fi
-sed -i "s/{{DUMMY_HTTP_SERVER_V4}}/${DUMMY_HTTP_SERVER_V4}/g" $db
-sed -i "s/{{DUMMY_HTTP_SERVER_V6}}/${DUMMY_HTTP_SERVER_V6}/g" $db
 
-cat $config
-/sbin/unbound-checkconf $config && exec /sbin/unbound -c $config -d -v
+sed -i "s/{{PRIMARY_FORWARDER}}/$PRIMARY_FORWARDER/" $unboundconf
+sed -i "s/{{SECONDARY_FORWARDER}}/$SECONDARY_FORWARDER/" $unboundconf
+
+cat $unboundconf
+/sbin/unbound-checkconf $unboundconf \
+&& exec /sbin/unbound -c $unboundconf -d -v

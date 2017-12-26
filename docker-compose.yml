@@ -1,42 +1,43 @@
-version: '2'
+version: '3'
 
 services:
   adblock-dns:
-    build: unbound
+    build:
+      context: ./unbound
+      dockerfile: Dockerfile.unbound
     container_name: adblock-dns
-    volumes_from:
-      - adblock-dns-data
-    environment:
-      - NUM_THREADS=2
-      - USE_CAPS_FOR_ID=yes
-      - LOG_ENABLE=no
-      - LOG_QUERIES=yes
-      - VERBOSITY=2
-      # - PRIMARY_FORWARDER=210.188.224.10
-      # - SECONDARY_FORWARDER=210.188.224.11
-      - DUMMY_HTTP_SERVER_v4=127.0.0.1
     ports:
       - "53:53"
       - "53:53/udp"
-    # networks:
-    #   adblockdns:
-    #     ipv4_address: "172.20.0.20"
+    environment:
+      ## use Google Public DNS as forwarder
+      # - PRIMARY_FORWARDER=8.8.8.8
+      # - SECONDARY_FORWARDER=8.8.4.4
 
-  adblock-dns-data:
-    image: busybox:latest
-    container_name: adblock-dns-data
-    volumes:
-      - ./log/unbound:/var/log/unbound
+      ## use Level3 as forwarder
+      # - PRIMARY_FORWARDER=4.2.2.1
+      # - SECONDARY_FORWARDER=4.2.2.2
+
+      ## use OpenDNS as forwarder
+      - PRIMARY_FORWARDER=208.67.222.222
+      - SECONDARY_FORWARDER=208.67.220.220
+
+      ## use DNS Advantage as forwarder
+      # - PRIMARY_FORWARDER=156.154.70.1
+      # - SECONDARY_FORWARDER=156.154.71.1
+
+      ## use Norton DNS as forwarder
+      # - PRIMARY_FORWARDER=198.153.192.1
+      # - SECONDARY_FORWARDER=198.153.194.1
+
+      ## return dummy IP instead of NXDOMAIN
+      # - DUMMY_HTTP_SERVER_V4=203.0.113.1
+      # - DUMMY_HTTP_SERVER_V6=2001:db8:0:0:0:0:0:1
 
   adblock-dns-dummyhttp:
-    build: dummyhttp
+    build:
+      context: ./dummyhttp
+      dockerfile: Dockerfile.dummyhttp
     container_name: adblock-dns-dummyhttp
     ports:
       - "80:80"
-
-# networks:
-#   adblockdns:
-#     driver: bridge
-#     ipam:
-#       config:
-#         - subnet: "172.20.0.0/24"
